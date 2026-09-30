@@ -1,0 +1,31 @@
+# Deployment/packaging scaffolding only. NOT used for local development — local dev runs
+# FastAPI natively and connects straight to Neon (see README / .env.example).
+services:
+  db:
+    image: pgvector/pgvector:pg16
+    environment:
+      POSTGRES_USER: quotepulse
+      POSTGRES_PASSWORD: quotepulse
+      POSTGRES_DB: quotepulse
+    ports:
+      - "5432:5432"
+    volumes:
+      - db-data:/var/lib/postgresql/data
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+
+  api:
+    build: ./backend
+    env_file:
+      - .env
+    ports:
+      - "8000:8000"
+    depends_on:
+      - db
+      - redis
+
+volumes:
+  db-data:
