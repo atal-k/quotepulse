@@ -1,0 +1,103 @@
+from datetime import datetime
+from decimal import Decimal
+from typing import Any
+from uuid import UUID
+
+from pydantic import BaseModel
+from sqlalchemy import func, select
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.core import audit
+from app.core.errors import NotFound, PermissionDenied
+from app.core.pagination import Page, PageParams
+from app.core.rbac import Action, Actor, can, visibility_clause
+
+
+def _jsonable(value: Any) -> Any:
+    if isinstance(value, UUID | Decimal):
+        return str(value)
+    if isinstance(value, datetime):
+        return value.isoformat()
+    return value
+
+
+class CrudService[ModelT, CreateT: BaseModel, UpdateT: BaseModel]:
+    """Scoped + audited CRUD for a simple owned aggregate. No delete: DOMAIN.md requires hard
+    deletes to go through a gated admin action, which doesn't exist until the approvals module
+    (Phase 4) — subclasses add `delete` then, not before.
+
+    Subclasses set `model`, `resource` (permission-matrix key) and `entity_type` (audit log key),
+    and may override `prepare_create`/`authorize_update` for aggregate-specific rules (e.g. who
+    may assign ownership) without touching the scoping/audit plumbing.
+    """
+
+    model: type[ModelT]
+    resource: str
+    entity_type: str
+
+    def __init__(self, session: AsyncSession) -> None:
+        self.session = session
+
+    def _require(self, actor: Actor, action: Action) -> None:
+        if not can(actor, self.resource, action):
+            raise PermissionDenied(f"{actor.role} may not {action.value} {self.resource}.")
+
+    def prepare_create(self, actor: Actor, payload: dict[str, Any]) -> dict[str, Any]:
+        """Default ownership: creator owns the row unless already supplied."""
+        payload.setdefault("owner_id", actor.user_id)
+        payload.setdefault("team_id", actor.team_id)
+        return payload
+
+    def authorize_update(self, actor: Actor, obj: ModelT, payload: dict[str, Any]) -> None:
+        """Hook for field-level update rules. No-op by default."""
+        return None
+
+    async def get(self, actor: Actor, id: UUID) -> ModelT:
+        self._require(actor, Action.READ)
+        stmt = select(self.model).where(self.model.id == id, visibility_clause(actor, self.model))
+        obj = (await self.session.execute(stmt)).scalar_one_or_none()
+        if obj is None:
+            raise NotFound(f"{self.entity_type} not found.", {"id": str(id)})
+        return obj
+
+    async def list(self, actor: Actor, page: PageParams) -> Page[ModelT]:
+        self._require(actor, Action.READ)
+        base_stmt = select(self.model).where(visibility_clause(actor, self.model))
+        total = (
+            await self.session.execute(select(func.count()).select_from(base_stmt.subquery()))
+        ).scalar_one()
+        stmt = (
+            base_stmt.order_by(self.model.created_at.desc(), self.model.id)
+            .limit(page.limit)
+            .offset(page.offset)
+        )
+        items = (await self.session.execute(stmt)).scalars().all()
+        return Page(items=list(items), total=total, limit=page.limit, offset=page.offset)
+
+    async def create(self, actor: Actor, data: CreateT) -> ModelT:
+        self._require(actor, Action.CREATE)
+        payload = self.prepare_create(actor, data.model_dump(exclude_unset=True))
+        obj = self.model(**payload)
+        self.session.add(obj)
+        await self.session.flush()
+        changes = {field: [None, _jsonable(value)] for field, value in payload.items()}
+        await audit.record(self.session, actor, "create", self.entity_type, obj.id, changes)
+        return obj
+
+    async def update(self, actor: Actor, id: UUID, data: UpdateT) -> ModelT:
+        obj = await self.get(actor, id)
+        self._require(actor, Action.UPDATE)
+        payload = data.model_dump(exclude_unset=True)
+        self.authorize_update(actor, obj, payload)
+
+        changes: dict[str, list[Any]] = {}
+        for field, new_value in payload.items():
+            old_value = getattr(obj, field)
+            if old_value != new_value:
+                changes[field] = [_jsonable(old_value), _jsonable(new_value)]
+                setattr(obj, field, new_value)
+
+        await self.session.flush()
+        if changes:
+            await audit.record(self.session, actor, "update", self.entity_type, obj.id, changes)
+        return obj
