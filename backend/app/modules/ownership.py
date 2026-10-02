@@ -20,6 +20,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core import audit
 from app.core.rbac import Actor
 from app.modules.contacts.models import Contact
+from app.modules.opportunities.models import Opportunity
 
 
 @dataclass(frozen=True)
@@ -30,7 +31,12 @@ class OwnedChild:
 
 
 CASCADE: dict[str, list[OwnedChild]] = {
-    "account": [OwnedChild("contact", Contact, lambda parent_id: Contact.account_id == parent_id)],
+    "account": [
+        OwnedChild("contact", Contact, lambda parent_id: Contact.account_id == parent_id),
+        OwnedChild(
+            "opportunity", Opportunity, lambda parent_id: Opportunity.account_id == parent_id
+        ),
+    ],
 }
 
 

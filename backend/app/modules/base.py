@@ -110,7 +110,11 @@ class CrudService[ModelT, CreateT: BaseModel, UpdateT: BaseModel]:
         self._require(actor, Action.UPDATE)
         payload = data.model_dump(exclude_unset=True)
         await self.authorize_update(actor, obj, payload)
+        return await self._apply_update(actor, obj, payload)
 
+    async def _apply_update(self, actor: Actor, obj: ModelT, payload: dict[str, Any]) -> ModelT:
+        """Set, flush and audit a payload that has already been authorized. Also the entry point
+        for internal state changes that the public update path must not allow (e.g. `mark_won`)."""
         changes: dict[str, list[Any]] = {}
         for field, new_value in payload.items():
             old_value = getattr(obj, field)
