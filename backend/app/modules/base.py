@@ -1,3 +1,4 @@
+from collections.abc import Mapping
 from datetime import datetime
 from decimal import Decimal
 from typing import Any
@@ -27,8 +28,9 @@ class CrudService[ModelT, CreateT: BaseModel, UpdateT: BaseModel]:
     (Phase 4) — subclasses add `delete` then, not before.
 
     Subclasses set `model`, `resource` (permission-matrix key) and `entity_type` (audit log key),
-    and may override `prepare_create`/`authorize_update` for aggregate-specific rules (e.g. who
-    may assign ownership) without touching the scoping/audit plumbing.
+    and may override the async hooks `prepare_create`/`authorize_update`/`after_update` for
+    aggregate-specific rules (who may assign ownership, parent lookups, cascades) without touching
+    the scoping/audit plumbing.
     """
 
     model: type[ModelT]
@@ -42,14 +44,20 @@ class CrudService[ModelT, CreateT: BaseModel, UpdateT: BaseModel]:
         if not can(actor, self.resource, action):
             raise PermissionDenied(f"{actor.role} may not {action.value} {self.resource}.")
 
-    def prepare_create(self, actor: Actor, payload: dict[str, Any]) -> dict[str, Any]:
+    async def prepare_create(self, actor: Actor, payload: dict[str, Any]) -> dict[str, Any]:
         """Default ownership: creator owns the row unless already supplied."""
         payload.setdefault("owner_id", actor.user_id)
         payload.setdefault("team_id", actor.team_id)
         return payload
 
-    def authorize_update(self, actor: Actor, obj: ModelT, payload: dict[str, Any]) -> None:
-        """Hook for field-level update rules. No-op by default."""
+    async def authorize_update(self, actor: Actor, obj: ModelT, payload: dict[str, Any]) -> None:
+        """Field-level update rules and payload normalization; runs before the update is applied.
+        No-op by default."""
+        return None
+
+    async def after_update(self, actor: Actor, obj: ModelT, changes: dict[str, list[Any]]) -> None:
+        """Runs after the update is flushed and audited, only when something changed. No-op by
+        default."""
         return None
 
     async def get(self, actor: Actor, id: UUID) -> ModelT:
@@ -60,9 +68,15 @@ class CrudService[ModelT, CreateT: BaseModel, UpdateT: BaseModel]:
             raise NotFound(f"{self.entity_type} not found.", {"id": str(id)})
         return obj
 
-    async def list(self, actor: Actor, page: PageParams) -> Page[ModelT]:
+    async def list(
+        self, actor: Actor, page: PageParams, filters: Mapping[str, Any] | None = None
+    ) -> Page[ModelT]:
+        """`filters` are equality filters on model columns; `None` values are ignored."""
         self._require(actor, Action.READ)
         base_stmt = select(self.model).where(visibility_clause(actor, self.model))
+        for column, value in (filters or {}).items():
+            if value is not None:
+                base_stmt = base_stmt.where(getattr(self.model, column) == value)
         total = (
             await self.session.execute(select(func.count()).select_from(base_stmt.subquery()))
         ).scalar_one()
@@ -76,7 +90,7 @@ class CrudService[ModelT, CreateT: BaseModel, UpdateT: BaseModel]:
 
     async def create(self, actor: Actor, data: CreateT) -> ModelT:
         self._require(actor, Action.CREATE)
-        payload = self.prepare_create(actor, data.model_dump(exclude_unset=True))
+        payload = await self.prepare_create(actor, data.model_dump(exclude_unset=True))
         obj = self.model(**payload)
         self.session.add(obj)
         await self.session.flush()
@@ -88,7 +102,7 @@ class CrudService[ModelT, CreateT: BaseModel, UpdateT: BaseModel]:
         obj = await self.get(actor, id)
         self._require(actor, Action.UPDATE)
         payload = data.model_dump(exclude_unset=True)
-        self.authorize_update(actor, obj, payload)
+        await self.authorize_update(actor, obj, payload)
 
         changes: dict[str, list[Any]] = {}
         for field, new_value in payload.items():
@@ -100,4 +114,5 @@ class CrudService[ModelT, CreateT: BaseModel, UpdateT: BaseModel]:
         await self.session.flush()
         if changes:
             await audit.record(self.session, actor, "update", self.entity_type, obj.id, changes)
+            await self.after_update(actor, obj, changes)
         return obj
