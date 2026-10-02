@@ -90,7 +90,9 @@ class LeadConversionService:
 
     async def _existing_result(self, actor: Actor, lead: Lead) -> LeadConvertResult:
         """Re-converting is a no-op that returns the original links, so retries are safe."""
-        page = await self.opportunities.list(actor, PageParams(limit=1, offset=0), {"lead_id": lead.id})
+        page = await self.opportunities.list(
+            actor, PageParams(limit=1, offset=0), {"lead_id": lead.id}
+        )
         if not page.items or lead.converted_account_id is None or lead.converted_contact_id is None:
             raise NotFound("Converted records for this lead are not visible.", {"id": str(lead.id)})
         return self._result(lead, page.items[0].id)

@@ -107,6 +107,10 @@ class OpportunityService(CrudService[Opportunity, OpportunityCreate, Opportunity
         resulting = target or obj.stage
         if resulting == "lost":
             if not payload.get("lost_reason", obj.lost_reason):
-                raise ValidationFailed("lost_reason is required to mark lost.", {"field": "lost_reason"})
+                raise ValidationFailed(
+                    "lost_reason is required to mark lost.", {"field": "lost_reason"}
+                )
         elif payload.get("lost_reason"):
-            raise ValidationFailed("lost_reason only applies to lost opportunities.", {"field": "lost_reason"})
+            raise ValidationFailed(
+                "lost_reason only applies to lost opportunities.", {"field": "lost_reason"}
+            )
