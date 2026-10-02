@@ -10,6 +10,7 @@ from app.core.base import Base
 from app.core.config import settings
 from app.core.db import build_engine
 from app.modules.accounts.models import Account  # noqa: F401
+from app.modules.contacts.models import Contact  # noqa: F401
 from app.modules.identity.models import Team, User  # noqa: F401
 
 config = context.config

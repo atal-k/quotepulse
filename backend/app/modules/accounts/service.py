@@ -5,6 +5,7 @@ from app.core.rbac import Actor, Role
 from app.modules.accounts.models import Account
 from app.modules.accounts.schemas import AccountCreate, AccountUpdate
 from app.modules.base import CrudService
+from app.modules.ownership import cascade_ownership
 
 
 class AccountService(CrudService[Account, AccountCreate, AccountUpdate]):
@@ -12,7 +13,7 @@ class AccountService(CrudService[Account, AccountCreate, AccountUpdate]):
     resource = "accounts"
     entity_type = "account"
 
-    def prepare_create(self, actor: Actor, payload: dict[str, Any]) -> dict[str, Any]:
+    async def prepare_create(self, actor: Actor, payload: dict[str, Any]) -> dict[str, Any]:
         if actor.role == Role.REP:
             payload["owner_id"] = actor.user_id
             payload["team_id"] = actor.team_id
@@ -23,8 +24,16 @@ class AccountService(CrudService[Account, AccountCreate, AccountUpdate]):
             payload["domain"] = payload["domain"].lower()
         return payload
 
-    def authorize_update(self, actor: Actor, obj: Account, payload: dict[str, Any]) -> None:
+    async def authorize_update(self, actor: Actor, obj: Account, payload: dict[str, Any]) -> None:
         if actor.role == Role.REP and ("owner_id" in payload or "team_id" in payload):
             raise PermissionDenied("Only managers/admins can reassign account ownership.")
         if payload.get("domain"):
             payload["domain"] = payload["domain"].lower()
+
+    async def after_update(
+        self, actor: Actor, obj: Account, changes: dict[str, list[Any]]
+    ) -> None:
+        if "owner_id" in changes or "team_id" in changes:
+            await cascade_ownership(
+                self.session, actor, self.entity_type, obj.id, obj.owner_id, obj.team_id
+            )
