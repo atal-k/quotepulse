@@ -5,7 +5,7 @@ from typing import Any
 from uuid import UUID
 
 from pydantic import BaseModel
-from sqlalchemy import func, select
+from sqlalchemy import ColumnElement, func, select, true
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core import audit
@@ -36,9 +36,15 @@ class CrudService[ModelT, CreateT: BaseModel, UpdateT: BaseModel]:
     model: type[ModelT]
     resource: str
     entity_type: str
+    # False for global resources with no owner_id/team_id (the catalog): row visibility is then
+    # unrestricted and access is governed by the permission matrix alone.
+    owned: bool = True
 
     def __init__(self, session: AsyncSession) -> None:
         self.session = session
+
+    def _visible(self, actor: Actor) -> ColumnElement[bool]:
+        return visibility_clause(actor, self.model) if self.owned else true()
 
     def _require(self, actor: Actor, action: Action) -> None:
         if not can(actor, self.resource, action):
@@ -46,8 +52,9 @@ class CrudService[ModelT, CreateT: BaseModel, UpdateT: BaseModel]:
 
     async def prepare_create(self, actor: Actor, payload: dict[str, Any]) -> dict[str, Any]:
         """Default ownership: creator owns the row unless already supplied."""
-        payload.setdefault("owner_id", actor.user_id)
-        payload.setdefault("team_id", actor.team_id)
+        if self.owned:
+            payload.setdefault("owner_id", actor.user_id)
+            payload.setdefault("team_id", actor.team_id)
         return payload
 
     async def authorize_update(self, actor: Actor, obj: ModelT, payload: dict[str, Any]) -> None:
@@ -62,7 +69,7 @@ class CrudService[ModelT, CreateT: BaseModel, UpdateT: BaseModel]:
 
     async def get(self, actor: Actor, id: UUID) -> ModelT:
         self._require(actor, Action.READ)
-        stmt = select(self.model).where(self.model.id == id, visibility_clause(actor, self.model))
+        stmt = select(self.model).where(self.model.id == id, self._visible(actor))
         obj = (await self.session.execute(stmt)).scalar_one_or_none()
         if obj is None:
             raise NotFound(f"{self.entity_type} not found.", {"id": str(id)})
@@ -73,7 +80,7 @@ class CrudService[ModelT, CreateT: BaseModel, UpdateT: BaseModel]:
     ) -> Page[ModelT]:
         """`filters` are equality filters on model columns; `None` values are ignored."""
         self._require(actor, Action.READ)
-        base_stmt = select(self.model).where(visibility_clause(actor, self.model))
+        base_stmt = select(self.model).where(self._visible(actor))
         for column, value in (filters or {}).items():
             if value is not None:
                 base_stmt = base_stmt.where(getattr(self.model, column) == value)

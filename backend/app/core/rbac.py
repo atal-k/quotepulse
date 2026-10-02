@@ -39,10 +39,14 @@ class Actor(BaseModel):
     agent_name: str | None = None
 
 
-# Resource-specific overrides land here as modules add rules that diverge from the default
-# (e.g. catalog is read-only for reps once the products module exists). Empty for now — Phase 0
-# only has `accounts`, which follows the default for every role.
-RESOURCE_OVERRIDES: dict[str, dict[Role, set[Action]]] = {}
+# Resources whose rules diverge from DEFAULT_ROLE_ACTIONS. The catalog is global and
+# admin-managed (DOMAIN.md): everyone reads it, only admins write.
+RESOURCE_OVERRIDES: dict[str, dict[Role, set[Action]]] = {
+    "products": {
+        Role.REP: {Action.READ},
+        Role.MANAGER: {Action.READ},
+    },
+}
 
 DEFAULT_ROLE_ACTIONS: dict[Role, set[Action]] = {
     Role.REP: {Action.READ, Action.CREATE, Action.UPDATE},
