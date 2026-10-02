@@ -13,6 +13,7 @@ from app.modules.accounts.models import Account  # noqa: F401
 from app.modules.contacts.models import Contact  # noqa: F401
 from app.modules.document_sequences.models import DocumentSequence  # noqa: F401
 from app.modules.identity.models import Team, User  # noqa: F401
+from app.modules.leads.models import Lead  # noqa: F401
 from app.modules.products.models import Product  # noqa: F401
 
 config = context.config
