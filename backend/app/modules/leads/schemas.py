@@ -60,3 +60,16 @@ class LeadRead(BaseModel):
     team_id: UUID | None
     created_at: datetime
     updated_at: datetime
+
+
+class LeadConvert(BaseModel):
+    # Link to this existing account instead of matching/creating one from the lead's email domain.
+    account_id: UUID | None = None
+    opportunity_name: str | None = Field(default=None, min_length=1, max_length=200)
+
+
+class LeadConvertResult(BaseModel):
+    lead: LeadRead
+    account_id: UUID
+    contact_id: UUID
+    opportunity_id: UUID

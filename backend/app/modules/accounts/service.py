@@ -1,7 +1,9 @@
 from typing import Any
 
+from sqlalchemy import select
+
 from app.core.errors import PermissionDenied
-from app.core.rbac import Actor, Role
+from app.core.rbac import Action, Actor, Role
 from app.modules.accounts.models import Account
 from app.modules.accounts.schemas import AccountCreate, AccountUpdate
 from app.modules.base import CrudService
@@ -30,10 +32,20 @@ class AccountService(CrudService[Account, AccountCreate, AccountUpdate]):
         if payload.get("domain"):
             payload["domain"] = payload["domain"].lower()
 
-    async def after_update(
-        self, actor: Actor, obj: Account, changes: dict[str, list[Any]]
-    ) -> None:
+    async def after_update(self, actor: Actor, obj: Account, changes: dict[str, list[Any]]) -> None:
         if "owner_id" in changes or "team_id" in changes:
             await cascade_ownership(
                 self.session, actor, self.entity_type, obj.id, obj.owner_id, obj.team_id
             )
+
+    async def find_by_domain(self, actor: Actor, domain: str) -> Account | None:
+        """The account with this domain, if the actor can see it."""
+        self._require(actor, Action.READ)
+        stmt = select(Account).where(Account.domain == domain.lower(), self._visible(actor))
+        return (await self.session.execute(stmt)).scalar_one_or_none()
+
+    async def domain_exists(self, domain: str) -> bool:
+        """Whether any account has this domain, regardless of visibility. Domain is globally
+        unique, so callers use this to turn a would-be unique violation into a clean Conflict."""
+        stmt = select(Account.id).where(Account.domain == domain.lower())
+        return (await self.session.execute(stmt)).first() is not None

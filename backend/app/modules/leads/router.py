@@ -8,8 +8,16 @@ from app.core.db import get_session
 from app.core.pagination import Page, PageParams, page_params
 from app.core.rbac import Actor
 from app.modules.identity.dependencies import get_current_actor
+from app.modules.leads.conversion import LeadConversionService
 from app.modules.leads.models import Lead
-from app.modules.leads.schemas import LeadCreate, LeadRead, LeadStatus, LeadUpdate
+from app.modules.leads.schemas import (
+    LeadConvert,
+    LeadConvertResult,
+    LeadCreate,
+    LeadRead,
+    LeadStatus,
+    LeadUpdate,
+)
 from app.modules.leads.service import LeadService
 
 router = APIRouter(prefix="/leads", tags=["leads"])
@@ -56,3 +64,13 @@ async def update_lead(
     service: Annotated[LeadService, Depends(get_lead_service)],
 ) -> Lead:
     return await service.update(actor, lead_id, payload)
+
+
+@router.post("/{lead_id}/convert", response_model=LeadConvertResult)
+async def convert_lead(
+    lead_id: UUID,
+    actor: Annotated[Actor, Depends(get_current_actor)],
+    session: Annotated[AsyncSession, Depends(get_session)],
+    payload: LeadConvert | None = None,
+) -> LeadConvertResult:
+    return await LeadConversionService(session).convert(actor, lead_id, payload or LeadConvert())

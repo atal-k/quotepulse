@@ -27,3 +27,40 @@ def normalize_phone(value: str) -> str:
     if not digits.isdigit() or digits.startswith("0") or not 8 <= len(digits) <= 15:
         raise ValidationFailed("Invalid phone number.", {"field": "phone", "value": value})
     return f"+{digits}"
+
+
+# Consumer mail providers: an address on one of these says nothing about the sender's company,
+# so it must never be used to match or create an account by domain.
+FREE_EMAIL_DOMAINS = frozenset(
+    {
+        "gmail.com",
+        "googlemail.com",
+        "yahoo.com",
+        "yahoo.in",
+        "yahoo.co.in",
+        "ymail.com",
+        "outlook.com",
+        "hotmail.com",
+        "live.com",
+        "msn.com",
+        "rediffmail.com",
+        "rediff.com",
+        "icloud.com",
+        "me.com",
+        "aol.com",
+        "proton.me",
+        "protonmail.com",
+        "zoho.com",
+        "gmx.com",
+        "mail.com",
+        "yandex.com",
+    }
+)
+
+
+def business_domain(email: str | None) -> str | None:
+    """The company domain of an email address, or None if absent or a free-mail provider."""
+    if not email or "@" not in email:
+        return None
+    domain = email.rsplit("@", 1)[1].strip().lower()
+    return None if not domain or domain in FREE_EMAIL_DOMAINS else domain

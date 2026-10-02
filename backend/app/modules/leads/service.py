@@ -1,8 +1,9 @@
+import uuid
 from typing import Any
 
 from app.core.errors import Conflict, PermissionDenied, ValidationFailed
 from app.core.normalize import normalize_email, normalize_phone
-from app.core.rbac import Actor, Role
+from app.core.rbac import Action, Actor, Role
 from app.modules.base import CrudService
 from app.modules.leads.models import Lead
 from app.modules.leads.schemas import LeadCreate, LeadUpdate
@@ -60,3 +61,16 @@ class LeadService(CrudService[Lead, LeadCreate, LeadUpdate]):
             if target == "converted":
                 raise Conflict("Leads are converted through the convert action, not by status.")
             check_transition(obj.status, target)
+
+    async def mark_converted(
+        self, actor: Actor, lead: Lead, account_id: uuid.UUID, contact_id: uuid.UUID
+    ) -> Lead:
+        """Internal transition to `converted`, used only by the convert flow."""
+        self._require(actor, Action.UPDATE)
+        check_transition(lead.status, "converted")
+        payload = {
+            "status": "converted",
+            "converted_account_id": account_id,
+            "converted_contact_id": contact_id,
+        }
+        return await self._apply_update(actor, lead, payload)
