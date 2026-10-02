@@ -40,3 +40,20 @@ feature/architecture change; this file keeps the full report for reference.
 - **Housekeeping bugs found and fixed during verification** (all now covered by the green test run): `SecretStr` hardening after a pydantic validation-error traceback briefly echoed a truncated settings fragment; a stray duplicate `backend/.env` (from my own earlier wording in the setup question) got consolidated into the canonical root `.env` and removed; `Page[Account]` as a router return-type annotation crashed at import time under Python 3.14's eager annotation evaluation (pydantic tried to build a schema for the raw ORM class) — fixed to an unparameterized `Page`; a session-scoped test-engine fixture broke across pytest-asyncio's per-test event loops — now function-scoped; one Starlette status-constant rename (`HTTP_422_UNPROCESSABLE_ENTITY` → `_CONTENT`).
 - `.gitignore` currently excludes `CLAUDE.md`, `AGENTS.md`, `ROADMAP.md`, and `docs/CHANGELOG.md` from git — I updated `docs/ROADMAP.md`/`docs/CHANGELOG.md` per CLAUDE.md's mandate anyway, but flagging that they won't actually get committed under the current `.gitignore` if you `git add` broadly.
 - Nothing committed — per CLAUDE.md §6, commits happen only when you ask.
+
+## Phase 0 → Phase 1 Handoff
+
+**Completed:** repo skeleton, `core/` foundation (config/db/base/security/rbac/audit/errors/pagination/logging), generic `CrudService`, `identity` (login+`/me`) and `accounts` (reference CRUD slice) modules, async Alembic env + first migration (`teams`, `users`, `accounts`, `audit_logs`), idempotent seed script, test harness on real Postgres. Pushed to `github.com/atal-k/quotepulse` (branded QuotePulse; repo dir stays `quotient/`).
+
+**Current state:** `ruff`/`mypy`/`alembic upgrade head`/seed/`pytest` all verified green (18/18 tests) against Neon. `make` now installed and confirmed working (`make test` passes). Seeded users: `admin@quotepulse.dev` / `manager@quotepulse.dev` / `rep@quotepulse.dev` (Aditya Sharma / Priya Nair / Rohan Verma), 1 team.
+
+**Key decisions to respect in Phase 1:**
+- `CrudService` (get/list/create/update only, no delete) is the pattern for simple aggregates (`contacts`, `products`, `notifications`); ROADMAP 1B modules (`quotations`, `orders`, `invoices`) need dedicated services, not this base class.
+- `visibility_clause()` in `core/rbac.py` requires `owner_id`+`team_id` on every owned model — keep denormalizing those on new tables.
+- Ownership-reassignment pattern (`prepare_create`/`authorize_update` hooks in `AccountService`) is the template for any module with manager/admin-only field changes.
+- No delete anywhere until Phase 4's approvals/gating exists — don't add one-off delete endpoints in Phase 1.
+- Audit every mutation via `core/audit.record()` in the same transaction — already wired into `CrudService.create`/`update`, extend to dedicated Phase 1B services manually.
+
+**Known limitation — fix before Phase 1 adds more tests:** `TEST_DATABASE_URL` currently equals `DATABASE_URL` (same Neon DB). Tests pass via SAVEPOINT rollback so nothing persists, but this deviates from CLAUDE.md's "separate test DB" rule. Provision a second Neon DB/branch and update `.env` before Phase 1's larger test surface (quotations, stock concurrency, etc.) lands.
+
+**Other follow-ups:** `pg_trgm` extension not yet enabled (ROADMAP 1A says do it early in Phase 1, it's cheap). Verification so far ran under Python 3.14 (only version installed here), not the pinned 3.12 — compatible per `requires-python>=3.12` but worth installing 3.12 if strict parity matters. `git commit`/push must never include a Claude co-author trailer — author stays `atal-k` only.
