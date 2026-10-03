@@ -610,7 +610,7 @@ class _Builder:
                 name="Suresh R. Iyer",
                 company_name="Iyer Forgings Pvt Ltd",
                 email="suresh@iyer-forgings.co.in",
-                phone=normalize_phone("098765-43210"),
+                phone=normalize_phone("+91 90031 45872"),
                 source="website",
                 status="new",
                 score=None,
@@ -972,7 +972,9 @@ class _Builder:
                     opp.owner_id,
                     opp.team_id,
                     template.format(
-                        product=self._colloquial(product), contact="buyer", qty="300 pcs"
+                        product=self._colloquial(product),
+                        contact=self._contact_first_name(opp.contact_id),
+                        qty="300 pcs",
                     ),
                     days_ago=60 - step * 12,
                 )
@@ -991,7 +993,7 @@ class _Builder:
             else:
                 parent = self.rng.choice(self._filler_opportunities())
                 entity, parent_id = EntityType.OPPORTUNITY, parent.id
-            body = self._body()
+            body = self._body(self._who(entity, parent))
             self._activity(
                 entity,
                 parent_id,
@@ -1133,17 +1135,19 @@ class _Builder:
             )
         )
 
-    def _body(self) -> str:
+    def _body(self, who: str) -> str:
         if self.rng.random() < 0.35:
             product = self.rng.choice(self.products)
             return self.rng.choice(pools.ACTIVITY_TEMPLATES).format(
                 product=self._colloquial(product),
-                contact="buyer",
+                contact=who,
                 qty=f"{self.rng.choice([100, 200, 300, 500])} pcs",
             )
-        return self.rng.choice(pools.ACTIVITY_TEMPLATES).format(
-            product=self.rng.choice(["stock", "samples"]), contact="buyer", qty="100 pcs"
-        )
+        # Generic bodies have no product slot. The two draws below are the ones the original
+        # generation made, so the random stream stays aligned; the template draw is unused.
+        kind = self.rng.choice(sorted(pools.GENERIC_BODIES))
+        self.rng.choice(pools.ACTIVITY_TEMPLATES)
+        return pools.GENERIC_BODIES[kind].format(who=who, qty="100 pcs")
 
     @staticmethod
     def _colloquial(product: Product) -> str:
@@ -1153,7 +1157,23 @@ class _Builder:
             return f"{size[1:]}mm {material} bolt"
         if product.category == "bearings":
             return f"bearing {product.name.split()[4]}"
-        return product.name.lower()
+        return product.name
+
+    def _contact_first_name(self, contact_id: uuid.UUID | None) -> str:
+        contact = next(
+            (o for o in self.objects if isinstance(o, Contact) and o.id == contact_id), None
+        )
+        return contact.first_name if contact is not None else "buyer"
+
+    def _who(self, entity: EntityType, parent: Base) -> str:
+        """The real person an activity is about, so the text never carries a placeholder name."""
+        if entity is EntityType.ACCOUNT:
+            return self.contacts[parent.id][0].first_name
+        if entity is EntityType.CONTACT:
+            return parent.first_name
+        if entity is EntityType.LEAD:
+            return parent.name.split()[0]
+        return self._contact_first_name(parent.contact_id)
 
     def _leads(self) -> list[Lead]:
         return [

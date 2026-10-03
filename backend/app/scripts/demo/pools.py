@@ -136,7 +136,7 @@ LEAD_SOURCES: tuple[str, ...] = (
 ACTIVITY_TEMPLATES: tuple[str, ...] = (
     "Call: {contact} ko {product} ka rate bheja, kal tak confirm karenge bola.",
     "Plant visit. {product} ki delivery time pe complaint thi, 15 din ka lead time bata diya.",
-    "WhatsApp: bhai {product} stock mein hai kya? {qty} chahiye.",
+    "WhatsApp: bhai {product} mein stock hai kya? {qty} chahiye.",
     "Email: quotation for {product} sent, valid 15 days. 3% discount offer kiya.",
     "Note: procurement ne bola local vendor se bhi comparison chal raha hai.",
     "Meeting: {contact} ne {product} ka sample maanga, courier kar diya.",
@@ -150,6 +150,12 @@ FOLLOW_UP_TEMPLATES: tuple[str, ...] = (
     "Price negotiation: bola {qty} pe better rate chahiye.",
     "Confirmation mil gaya, PO ka wait hai.",
 )
+
+# Fallback bodies for activities with no product in them. Keys are plain nouns, never product names.
+GENERIC_BODIES: dict[str, str] = {
+    "stock": "WhatsApp: bhai stock mein hai kya? {qty} chahiye.",
+    "samples": "Note: {who} ne samples maanga, courier kar diya.",
+}
 
 # Colloquial names by catalog family; the product is referred to this way in activity text.
 FASTENER_COLLOQUIAL = {"SS304": "stainless", "SS316": "316 stainless", "MS": "mild steel"}

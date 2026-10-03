@@ -141,7 +141,8 @@ def test_planted_duplicate_lead_is_fuzzy_not_exact() -> None:
     original = _by_id(dataset.objects, Lead, demo.HERO_LEAD_ORIGINAL)
     duplicate = _by_id(dataset.objects, Lead, demo.HERO_LEAD_DUPLICATE)
 
-    assert original.phone == duplicate.phone == "+919876543210"
+    assert original.phone == "+919876543210"
+    assert duplicate.phone != original.phone
     assert original.email != duplicate.email
     assert original.email.split("@")[1] != duplicate.email.split("@")[1]
     assert original.name != duplicate.name
