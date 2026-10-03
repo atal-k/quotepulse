@@ -81,3 +81,12 @@ def auth_headers() -> Callable[[User], dict[str, str]]:
         return {"Authorization": f"Bearer {create_access_token(user.id)}"}
 
     return _headers
+
+
+@pytest.fixture
+async def catalog_headers(
+    make_user: Callable[..., Awaitable[User]],
+    auth_headers: Callable[[User], dict[str, str]],
+) -> dict[str, str]:
+    """Catalog products are admin-managed (DOMAIN.md), so tests create them with admin headers."""
+    return auth_headers(await make_user("admin"))
