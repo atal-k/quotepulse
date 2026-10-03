@@ -1,0 +1,121 @@
+@import "tailwindcss";
+
+/*
+ * QuotePulse design tokens. One place to change the look; components only use the names below.
+ * Warm paper neutrals, a deep teal accent, and a dark teal sidebar. Status colours are paired
+ * soft/strong so badges read clearly on both white and paper backgrounds.
+ */
+:root {
+  --background: #f6f4f0;
+  --surface: #ffffff;
+  --surface-muted: #f2efe9;
+  --line: #e4dfd5;
+  --line-soft: #efebe4;
+  --ink: #1b1a17;
+  --ink-muted: #6b665c;
+  --ink-faint: #a29d92;
+
+  --accent: #0f766e;
+  --accent-strong: #0b5f59;
+  --accent-soft: #e2f3f1;
+  --accent-foreground: #ffffff;
+
+  --success: #2f7a4f;
+  --success-soft: #e7f4ec;
+  --warning: #8f5a0c;
+  --warning-soft: #fbf1de;
+  --danger: #a8322a;
+  --danger-soft: #fbe9e7;
+  --info: #2f5f9e;
+  --info-soft: #e6eef9;
+
+  --sidebar: #17302f;
+  --sidebar-ink: #c9dcd8;
+  --sidebar-ink-strong: #ffffff;
+  --sidebar-active: rgba(255, 255, 255, 0.09);
+
+  --radius-card: 1rem;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-surface: var(--surface);
+  --color-surface-muted: var(--surface-muted);
+  --color-line: var(--line);
+  --color-line-soft: var(--line-soft);
+  --color-ink: var(--ink);
+  --color-ink-muted: var(--ink-muted);
+  --color-ink-faint: var(--ink-faint);
+  --color-accent: var(--accent);
+  --color-accent-strong: var(--accent-strong);
+  --color-accent-soft: var(--accent-soft);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-success: var(--success);
+  --color-success-soft: var(--success-soft);
+  --color-warning: var(--warning);
+  --color-warning-soft: var(--warning-soft);
+  --color-danger: var(--danger);
+  --color-danger-soft: var(--danger-soft);
+  --color-info: var(--info);
+  --color-info-soft: var(--info-soft);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-ink: var(--sidebar-ink);
+  --color-sidebar-ink-strong: var(--sidebar-ink-strong);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+  --animate-fade-up: fade-up 380ms cubic-bezier(0.2, 0.7, 0.2, 1) both;
+}
+
+html {
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+body {
+  background: var(--background);
+  color: var(--ink);
+  font-family: var(--font-sans), ui-sans-serif, system-ui, sans-serif;
+}
+
+@keyframes fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Loading placeholder: a soft sweep across warm neutrals, not a grey pulse. */
+.skeleton {
+  background: linear-gradient(
+    90deg,
+    var(--surface-muted) 0%,
+    #ebe6dd 45%,
+    var(--surface-muted) 90%
+  );
+  background-size: 200% 100%;
+  animation: sweep 1.4s ease-in-out infinite;
+}
+
+@keyframes sweep {
+  from {
+    background-position: 100% 0;
+  }
+  to {
+    background-position: -100% 0;
+  }
+}
+
+/* Respect the OS setting: no motion for people who ask for less. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 1ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 1ms !important;
+  }
+}
