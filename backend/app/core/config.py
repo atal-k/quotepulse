@@ -28,6 +28,13 @@ class Settings(BaseSettings):
 
     cors_origins: str = "http://localhost:3000"
 
+    # Provider key for the Gemini client in agents/llm.py. Optional so the app and the
+    # non-LLM test suite boot without it; the client raises when it is actually needed.
+    gemini_api_key: SecretStr | None = None
+    # Model name only. The vector width is a code constant bound to the migrations
+    # (context/embeddings.py EMBEDDING_DIMENSIONS), not a setting.
+    embedding_model: str = "gemini-embedding-2"
+
     @property
     def cors_origin_list(self) -> list[str]:
         return [origin.strip() for origin in self.cors_origins.split(",") if origin.strip()]

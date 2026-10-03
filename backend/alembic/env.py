@@ -5,6 +5,7 @@ from logging.config import fileConfig
 from sqlalchemy.engine import Connection
 
 from alembic import context
+from app.context.models import DuplicateCandidate, KbChunk, KbDocument  # noqa: F401
 from app.core.audit import AuditLog  # noqa: F401  (registers on Base.metadata)
 from app.core.base import Base
 from app.core.config import settings

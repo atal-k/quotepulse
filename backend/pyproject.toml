@@ -19,6 +19,8 @@ dependencies = [
   "python-dotenv>=1.0",
   "argon2-cffi>=23.1",
   "pyjwt>=2.9",
+  # SQLAlchemy `Vector` column type for embedding columns (no raw SQL for vector DDL/ORM).
+  "pgvector>=0.3",
 ]
 
 [project.optional-dependencies]
@@ -53,3 +55,5 @@ plugins = ["pydantic.mypy"]
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 testpaths = ["tests"]
+addopts = "-m 'not llm'"
+markers = ["llm: live provider call (real API, costs money); opt-in with -m llm"]
