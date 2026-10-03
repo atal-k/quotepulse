@@ -10,10 +10,12 @@ from app.core.base import Base
 from app.core.config import settings
 from app.core.db import build_engine
 from app.modules.accounts.models import Account  # noqa: F401
+from app.modules.activities.models import Activity  # noqa: F401
 from app.modules.contacts.models import Contact  # noqa: F401
 from app.modules.document_sequences.models import DocumentSequence  # noqa: F401
 from app.modules.identity.models import Team, User  # noqa: F401
 from app.modules.leads.models import Lead  # noqa: F401
+from app.modules.notifications.models import Notification  # noqa: F401
 from app.modules.opportunities.models import Opportunity  # noqa: F401
 from app.modules.products.models import Product  # noqa: F401
 
