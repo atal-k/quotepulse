@@ -7,6 +7,7 @@ from app.core.rbac import Action, Actor, Role
 from app.modules.accounts.models import Account
 from app.modules.accounts.schemas import AccountCreate, AccountUpdate
 from app.modules.base import CrudService
+from app.modules.notifications.service import notify
 from app.modules.ownership import cascade_ownership
 
 
@@ -36,6 +37,16 @@ class AccountService(CrudService[Account, AccountCreate, AccountUpdate]):
         if "owner_id" in changes or "team_id" in changes:
             await cascade_ownership(
                 self.session, actor, self.entity_type, obj.id, obj.owner_id, obj.team_id
+            )
+        if "owner_id" in changes and obj.owner_id != actor.user_id:
+            await notify(
+                self.session,
+                actor,
+                obj.owner_id,
+                kind="ownership_assigned",
+                title=f"{obj.name} was assigned to you",
+                entity_type="account",
+                entity_id=obj.id,
             )
 
     async def find_by_domain(self, actor: Actor, domain: str) -> Account | None:

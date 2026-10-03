@@ -7,6 +7,8 @@ from app.core.rbac import Action, Actor, Role
 from app.modules.base import CrudService
 from app.modules.leads.models import Lead
 from app.modules.leads.schemas import LeadCreate, LeadUpdate
+from app.modules.notifications.service import notify
+from app.modules.ownership import cascade_ownership
 
 TRANSITIONS: dict[str, set[str]] = {
     "new": {"contacted", "disqualified"},
@@ -61,6 +63,22 @@ class LeadService(CrudService[Lead, LeadCreate, LeadUpdate]):
             if target == "converted":
                 raise Conflict("Leads are converted through the convert action, not by status.")
             check_transition(obj.status, target)
+
+    async def after_update(self, actor: Actor, obj: Lead, changes: dict[str, list[Any]]) -> None:
+        if "owner_id" in changes or "team_id" in changes:
+            await cascade_ownership(
+                self.session, actor, self.entity_type, obj.id, obj.owner_id, obj.team_id
+            )
+        if "owner_id" in changes and obj.owner_id != actor.user_id:
+            await notify(
+                self.session,
+                actor,
+                obj.owner_id,
+                kind="ownership_assigned",
+                title=f"{obj.name} was assigned to you",
+                entity_type="lead",
+                entity_id=obj.id,
+            )
 
     async def mark_converted(
         self, actor: Actor, lead: Lead, account_id: uuid.UUID, contact_id: uuid.UUID
