@@ -11,6 +11,7 @@ import { Badge, statusTone } from "@/components/ui/badge";
 import { Card, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ErrorState } from "@/components/ui/state";
+import { QuotationActions } from "@/components/sales/quotation-actions";
 import { type QuotationItem, useAccount, useQuotation } from "@/lib/api/queries";
 import { date, label, money } from "@/lib/format";
 
@@ -82,7 +83,14 @@ export default function QuotationDetailPage() {
             "Loading account"
           )
         }
-        actions={<Badge tone={statusTone(q.status)}>{label(q.status)}</Badge>}
+        actions={
+          <div className="flex flex-col items-end gap-2">
+            <div className="flex items-center gap-2">
+              <Badge tone={statusTone(q.status)}>{label(q.status)}</Badge>
+              <QuotationActions quotation={q} />
+            </div>
+          </div>
+        }
       />
 
       {awaitingApproval ? (

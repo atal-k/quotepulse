@@ -1,7 +1,7 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { FileText, Building2, LogOut, Target, Users } from "lucide-react";
+import { Building2, FileText, LogOut, Package, Receipt, Target, Truck, Users } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, type ReactNode } from "react";
@@ -16,6 +16,9 @@ const NAV = [
   { href: "/leads", label: "Leads", icon: Users },
   { href: "/opportunities", label: "Opportunities", icon: Target },
   { href: "/quotations", label: "Quotations", icon: FileText },
+  { href: "/orders", label: "Orders", icon: Truck },
+  { href: "/invoices", label: "Invoices", icon: Receipt },
+  { href: "/products", label: "Products", icon: Package },
 ] as const;
 
 export function AppShell({ children }: { children: ReactNode }) {
