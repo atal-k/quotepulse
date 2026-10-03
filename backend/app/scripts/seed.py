@@ -1,6 +1,6 @@
-"""Idempotent dev seed: one team + admin/manager/rep users. Credentials are documented in
-README.md, not printed here — they're fixed dev-only fixtures, not real secrets, but CLAUDE.md
-still says no secrets in logs, so we don't echo them.
+"""Idempotent dev seed: one team, admin/manager/rep users, then the demo dataset (roadmap 1C).
+Credentials are documented in README.md, not printed here — they're fixed dev-only fixtures, not
+real secrets, but CLAUDE.md still says no secrets in logs, so we don't echo them.
 
 Not a request/job, so it owns its own transaction (commit, not flush) — same pattern Alembic
 migrations use, outside the request/job unit-of-work.
@@ -13,6 +13,8 @@ from sqlalchemy import select
 from app.core.db import async_session_factory
 from app.core.security import hash_password
 from app.modules.identity.models import Team, User
+from app.scripts.demo.builder import SeedOwners, build_dataset
+from app.scripts.demo.loader import already_loaded, load
 
 SEED_TEAM_NAME = "Default Team"
 
@@ -65,6 +67,22 @@ async def seed() -> None:
                 )
             )
             print(f"seeded {entry['role']}: {entry['email']}")
+
+        await session.flush()
+        if await already_loaded(session):
+            print("demo dataset already present; skipping")
+        else:
+            users = {
+                u.role: u.id
+                for u in (
+                    await session.execute(select(User).where(User.team_id == team.id))
+                ).scalars()
+            }
+            dataset = build_dataset(
+                SeedOwners(rep=users["rep"], manager=users["manager"], team_id=team.id)
+            )
+            written = await load(session, dataset)
+            print(f"seeded demo dataset: {written} aggregates")
 
         await session.commit()
 
