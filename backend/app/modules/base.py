@@ -1,5 +1,5 @@
 from collections.abc import Mapping
-from datetime import datetime
+from datetime import date
 from decimal import Decimal
 from typing import Any
 from uuid import UUID
@@ -17,7 +17,7 @@ from app.core.rbac import Action, Actor, can, visibility_clause
 def _jsonable(value: Any) -> Any:
     if isinstance(value, UUID | Decimal):
         return str(value)
-    if isinstance(value, datetime):
+    if isinstance(value, date):  # also covers datetime, which subclasses date
         return value.isoformat()
     return value
 
