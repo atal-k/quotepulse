@@ -22,7 +22,10 @@ from app.core.rbac import Actor
 from app.modules.activities.enums import EntityType
 from app.modules.activities.models import Activity
 from app.modules.contacts.models import Contact
+from app.modules.invoices.models import Invoice
 from app.modules.opportunities.models import Opportunity
+from app.modules.orders.models import Order
+from app.modules.quotations.models import Quotation
 
 
 @dataclass(frozen=True)
@@ -48,11 +51,15 @@ CASCADE: dict[str, list[OwnedChild]] = {
         OwnedChild(
             "opportunity", Opportunity, lambda parent_id: Opportunity.account_id == parent_id
         ),
+        OwnedChild("quotation", Quotation, lambda parent_id: Quotation.account_id == parent_id),
+        OwnedChild("order", Order, lambda parent_id: Order.account_id == parent_id),
         _activities_on(EntityType.ACCOUNT),
     ],
     "contact": [_activities_on(EntityType.CONTACT)],
     "lead": [_activities_on(EntityType.LEAD)],
     "opportunity": [_activities_on(EntityType.OPPORTUNITY)],
+    "quotation": [OwnedChild("order", Order, lambda parent_id: Order.quotation_id == parent_id)],
+    "order": [OwnedChild("invoice", Invoice, lambda parent_id: Invoice.order_id == parent_id)],
 }
 
 
