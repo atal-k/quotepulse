@@ -14,11 +14,13 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Any
 
-from sqlalchemy import ColumnElement, select
+from sqlalchemy import ColumnElement, and_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core import audit
 from app.core.rbac import Actor
+from app.modules.activities.enums import EntityType
+from app.modules.activities.models import Activity
 from app.modules.contacts.models import Contact
 from app.modules.opportunities.models import Opportunity
 
@@ -30,13 +32,27 @@ class OwnedChild:
     link: Callable[[uuid.UUID], ColumnElement[bool]]  # parent id → clause selecting its children
 
 
+def _activities_on(parent: EntityType) -> OwnedChild:
+    return OwnedChild(
+        "activity",
+        Activity,
+        lambda parent_id: and_(
+            Activity.entity_type == parent.value, Activity.entity_id == parent_id
+        ),
+    )
+
+
 CASCADE: dict[str, list[OwnedChild]] = {
     "account": [
         OwnedChild("contact", Contact, lambda parent_id: Contact.account_id == parent_id),
         OwnedChild(
             "opportunity", Opportunity, lambda parent_id: Opportunity.account_id == parent_id
         ),
+        _activities_on(EntityType.ACCOUNT),
     ],
+    "contact": [_activities_on(EntityType.CONTACT)],
+    "lead": [_activities_on(EntityType.LEAD)],
+    "opportunity": [_activities_on(EntityType.OPPORTUNITY)],
 }
 
 
