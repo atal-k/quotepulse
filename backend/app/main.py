@@ -10,10 +10,13 @@ from app.modules.accounts.router import router as accounts_router
 from app.modules.activities.router import router as activities_router
 from app.modules.contacts.router import router as contacts_router
 from app.modules.identity.router import router as identity_router
+from app.modules.invoices.router import router as invoices_router
 from app.modules.leads.router import router as leads_router
 from app.modules.notifications.router import router as notifications_router
 from app.modules.opportunities.router import router as opportunities_router
+from app.modules.orders.router import router as orders_router
 from app.modules.products.router import router as products_router
+from app.modules.quotations.router import router as quotations_router
 
 
 def create_app() -> FastAPI:
@@ -44,6 +47,9 @@ def create_app() -> FastAPI:
     app.include_router(products_router, prefix="/api/v1")
     app.include_router(activities_router, prefix="/api/v1")
     app.include_router(notifications_router, prefix="/api/v1")
+    app.include_router(quotations_router, prefix="/api/v1")
+    app.include_router(orders_router, prefix="/api/v1")
+    app.include_router(invoices_router, prefix="/api/v1")
 
     @app.get("/health")
     async def health() -> dict[str, str]:

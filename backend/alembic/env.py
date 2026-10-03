@@ -14,10 +14,13 @@ from app.modules.activities.models import Activity  # noqa: F401
 from app.modules.contacts.models import Contact  # noqa: F401
 from app.modules.document_sequences.models import DocumentSequence  # noqa: F401
 from app.modules.identity.models import Team, User  # noqa: F401
+from app.modules.invoices.models import Invoice  # noqa: F401
 from app.modules.leads.models import Lead  # noqa: F401
 from app.modules.notifications.models import Notification  # noqa: F401
 from app.modules.opportunities.models import Opportunity  # noqa: F401
+from app.modules.orders.models import Order, OrderItem  # noqa: F401
 from app.modules.products.models import Product  # noqa: F401
+from app.modules.quotations.models import Quotation, QuotationItem  # noqa: F401
 
 config = context.config
 
