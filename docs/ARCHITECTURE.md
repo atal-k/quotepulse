@@ -2,7 +2,7 @@
 
 ## 1. Style & topology
 Modular monolith. Processes: `api` (FastAPI), `worker` (RQ: embeddings, Enrich, Monitor), `web` (Next.js).
-Data: Neon Postgres 16 (+pgvector, pg_trgm) for development and deployment; Redis is introduced in Phase 3 and runs locally/self-hosted when needed. Solo + 4 weekends → boundaries are enforced by code layering, not network hops.
+Data: Neon Postgres 16 (+pgvector, pg_trgm) for development and deployment; Redis is introduced in Phase 2B (`process_activity` is the first RQ job) and runs locally/self-hosted when needed. Solo + 4 weekends → boundaries are enforced by code layering, not network hops.
 
 ## 2. Layering
 ```
@@ -57,7 +57,7 @@ Request-id logging; `agent_runs` (steps JSONB, tokens, cost, latency) → UI "Ag
 
 Docker Compose is introduced at deployment/packaging time (`api, worker, web, redis`) on one server; Caddy for TLS; secrets in server `.env`; optional nightly `pg_dump` to S3. Neon is the Postgres database for both development and deployment. Migrations run on deploy.
 
-Local development: FastAPI and Next.js run directly on the machine (`uvicorn --reload`, `npm run dev`) and connect directly to Neon. No local Postgres or Docker is required for local development. Redis is skipped until Phase 3.
+Local development: FastAPI and Next.js run directly on the machine (`uvicorn --reload`, `npm run dev`) and connect directly to Neon. No local Postgres or Docker is required for local development. From Phase 2B, a local Redis-compatible server (the `docker-compose.yml` `redis` service, or a native install) is required for the `process_activity` job queue; `make worker` runs the RQ worker.
 
 ## 12. Testing strategy
 Pure unit tests (pricing, policy, transitions) · service tests on real Postgres · API tests (RBAC matrix per role, audit written) · agent scenario tests with mocked LLM asserting **DB effects and approval requests, not prose** · `@pytest.mark.llm` live smoke tests (opt-in). Temperature 0 for agents.
@@ -70,6 +70,6 @@ API keys must come from environment variables and must never be committed or log
 ## 14. Deployment — free/low-cost topology
 
 - **DB:** Neon free tier (Postgres 16, pgvector included, 0.5 GB storage / 100 CU-hrs monthly — well above this project's seed-data scale). Autosuspends when idle; first request after idle has a brief cold start.
-- **Redis:** introduced in Phase 3; self-hosted container next to the deployed app. Upstash free tier is a drop-in alternative if a fully managed stack is preferred.
+- **Redis:** introduced in Phase 2B; self-hosted container next to the deployed app (local dev uses the `docker-compose.yml` service or a native/Memurai install). Upstash free tier is a drop-in alternative if a fully managed stack is preferred.
 - **Compute (api, worker, web):** the user's existing Linux server if it has root/Docker access and ≥2 GB RAM — zero new signup, reuses paid-for infra. Otherwise, Oracle Cloud "Always Free" Ampere A1; AWS EC2 free tier is the fallback.
-- **Local development:** FastAPI + Next.js run natively; both connect directly to Neon via `DATABASE_URL`. No local Postgres, Redis, or Docker is required during development. Docker Compose is added later for deployment/packaging.
+- **Local development:** FastAPI + Next.js run natively; both connect directly to Neon via `DATABASE_URL`. No local Postgres or Docker is required during development. From Phase 2B, a local Redis-compatible server is required for the job queue. Docker Compose is added later for deployment/packaging.
