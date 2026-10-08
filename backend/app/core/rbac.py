@@ -2,8 +2,8 @@ from enum import StrEnum
 from typing import Any
 from uuid import UUID
 
-from pydantic import BaseModel
-from sqlalchemy import ColumnElement, and_, or_, true
+from pydantic import BaseModel, model_validator
+from sqlalchemy import ColumnElement, and_, false, or_, true
 
 
 class Role(StrEnum):
@@ -28,15 +28,24 @@ class Action(StrEnum):
 
 class Actor(BaseModel):
     """Carried into every service call. Agents/MCP delegate a human's scope — they never
-    exceed the user_id/role/team_id they're acting on behalf of (ARCHITECTURE §3)."""
+    exceed the user_id/role/team_id they're acting on behalf of (ARCHITECTURE §3).
+
+    `user_id`/`role` are optional only for `kind=system` (a background job acting on its own,
+    e.g. process_activity) — every other kind must carry a real user to delegate from."""
 
     model_config = {"frozen": True}
 
-    user_id: UUID
-    role: Role
+    user_id: UUID | None
+    role: Role | None = None
     team_id: UUID | None
     kind: ActorKind = ActorKind.HUMAN
     agent_name: str | None = None
+
+    @model_validator(mode="after")
+    def _system_actors_omit_identity(self) -> "Actor":
+        if self.kind != ActorKind.SYSTEM and (self.user_id is None or self.role is None):
+            raise ValueError("user_id and role are required unless kind=system")
+        return self
 
 
 # Resources whose rules diverge from DEFAULT_ROLE_ACTIONS. The catalog is global and
@@ -60,6 +69,8 @@ def permissions_for(role: Role, resource: str) -> set[Action]:
 
 
 def can(actor: Actor, resource: str, action: Action) -> bool:
+    if actor.role is None:  # a system actor never goes through permission checks
+        return False
     return action in permissions_for(actor.role, resource)
 
 
@@ -68,6 +79,8 @@ def visibility_clause(actor: Actor, model: Any) -> ColumnElement[bool]:
     rep: own rows only. manager: team's rows, falling back to owner match for rows with no
     team. admin: everything. Applied inside every scoped list/get query — out-of-scope single
     fetches must come back 404, never 403."""
+    if actor.role is None:  # a system actor has no scoped visibility of its own
+        return false()
     if actor.role == Role.ADMIN:
         return true()
     if actor.role == Role.MANAGER:

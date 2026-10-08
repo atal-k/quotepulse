@@ -45,7 +45,7 @@ async def record(
     approval_id: uuid.UUID | None = None,
 ) -> AuditLog:
     entry = AuditLog(
-        actor_id=actor.user_id,
+        actor_id=actor.user_id,  # None for a kind=system actor; actor_id is nullable for this
         actor_kind=actor.kind.value,
         agent_name=actor.agent_name,
         action=action,
