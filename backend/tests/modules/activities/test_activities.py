@@ -261,3 +261,15 @@ async def test_lead_reassignment_moves_its_activities(
         f"/api/v1/activities/{activity['id']}", headers=auth_headers(new_owner)
     )
     assert moved.json()["owner_id"] == str(new_owner.id)
+
+
+async def test_create_enqueues_process_activity(
+    client: AsyncClient,
+    make_user: MakeUser,
+    auth_headers: AuthHeaders,
+    stub_enqueue: list[UUID],
+) -> None:
+    rep = await make_user("rep")
+    account = await _account(client, auth_headers(rep))
+    activity = await _log(client, auth_headers(rep), entity_id=account["id"])
+    assert stub_enqueue == [UUID(activity["id"])]

@@ -2,6 +2,7 @@ from datetime import UTC, datetime
 from typing import Any
 
 from app.core.rbac import Actor
+from app.jobs.queue import enqueue_process_activity
 from app.modules.activities.models import Activity
 from app.modules.activities.refs import load_parent
 from app.modules.activities.schemas import ActivityCreate, ActivityUpdate
@@ -12,6 +13,9 @@ class ActivityService(CrudService[Activity, ActivityCreate, ActivityUpdate]):
     model = Activity
     resource = "activities"
     entity_type = "activity"
+
+    async def after_create(self, actor: Actor, obj: Activity) -> None:
+        enqueue_process_activity(obj.id)
 
     async def prepare_create(self, actor: Actor, payload: dict[str, Any]) -> dict[str, Any]:
         parent = await load_parent(
