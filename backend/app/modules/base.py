@@ -67,6 +67,11 @@ class CrudService[ModelT, CreateT: BaseModel, UpdateT: BaseModel]:
         default."""
         return None
 
+    async def after_create(self, actor: Actor, obj: ModelT) -> None:
+        """Runs after the create is flushed and audited. No-op by default; `activities`
+        overrides this to enqueue `process_activity`."""
+        return None
+
     async def get(self, actor: Actor, id: UUID) -> ModelT:
         self._require(actor, Action.READ)
         stmt = select(self.model).where(self.model.id == id, self._visible(actor))
@@ -103,6 +108,7 @@ class CrudService[ModelT, CreateT: BaseModel, UpdateT: BaseModel]:
         await self.session.flush()
         changes = {field: [None, _jsonable(value)] for field, value in payload.items()}
         await audit.record(self.session, actor, "create", self.entity_type, obj.id, changes)
+        await self.after_create(actor, obj)
         return obj
 
     async def update(self, actor: Actor, id: UUID, data: UpdateT) -> ModelT:

@@ -1,4 +1,5 @@
 from collections.abc import AsyncGenerator
+from contextlib import asynccontextmanager
 from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
 from sqlalchemy.ext.asyncio import (
@@ -38,6 +39,20 @@ async_session_factory = async_sessionmaker(engine, expire_on_commit=False)
 async def get_session() -> AsyncGenerator[AsyncSession, None]:
     """One session per request. Services flush(); this commits on success and rolls back
     on exception, so the commit lands before the response is sent."""
+    async with async_session_factory() as session:
+        try:
+            yield session
+            await session.commit()
+        except Exception:
+            await session.rollback()
+            raise
+
+
+@asynccontextmanager
+async def unit_of_work() -> AsyncGenerator[AsyncSession, None]:
+    """The job equivalent of `get_session` (ARCHITECTURE §4): one transaction for the whole
+    job, committed once at the end. Jobs run outside request scope, so this is a plain async
+    context manager rather than a FastAPI dependency."""
     async with async_session_factory() as session:
         try:
             yield session
