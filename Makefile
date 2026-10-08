@@ -1,4 +1,4 @@
-.PHONY: up down dev migrate revision seed test lint fmt
+.PHONY: up down dev worker migrate revision seed test lint fmt
 
 # Docker Compose is deployment/packaging scaffolding only — NOT required for local development.
 # Local dev connects straight to Neon via DATABASE_URL in .env.
@@ -10,6 +10,11 @@ down:
 
 dev:
 	cd backend && uvicorn app.main:app --reload
+
+# Processes process_activity jobs. Needs a Redis-compatible server on REDIS_URL (`make up`,
+# or a native/Memurai install for local dev — see docs/ARCHITECTURE.md §1).
+worker:
+	cd backend && rq worker activities --url "$${REDIS_URL:-redis://localhost:6379/0}"
 
 migrate:
 	cd backend && alembic upgrade head
