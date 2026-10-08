@@ -34,6 +34,12 @@ class Settings(BaseSettings):
     # Model name only. The vector width is a code constant bound to the migrations
     # (context/embeddings.py EMBEDDING_DIMENSIONS), not a setting.
     embedding_model: str = "gemini-embedding-2"
+    # Fast/classify tier (CLAUDE §3) for ActivityInsight extraction.
+    insight_model: str = "gemini-3.5-flash-lite"
+
+    # RQ job queue (Phase 2B). Local dev points this at a Redis-compatible server
+    # (docker-compose's `redis` service, or a native/Memurai install).
+    redis_url: str = "redis://localhost:6379/0"
 
     @property
     def cors_origin_list(self) -> list[str]:

@@ -21,6 +21,9 @@ dependencies = [
   "pyjwt>=2.9",
   # SQLAlchemy `Vector` column type for embedding columns (no raw SQL for vector DDL/ORM).
   "pgvector>=0.3",
+  # Job queue for process_activity (CLAUDE §3 fixed stack; first actual use is Phase 2B).
+  "rq>=2.0",
+  "redis>=5.0",
 ]
 
 [project.optional-dependencies]
